@@ -23,7 +23,7 @@ export default function BooksPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       setProfile(p);
       await loadBooks(supabase);
     });

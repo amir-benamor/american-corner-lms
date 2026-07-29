@@ -18,18 +18,28 @@ export default function DashboardLayout({
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      if (!user) { router.push("/login"); return; }
       const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
-      setProfile(data);
+        .maybeSingle();
+      if (!data) {
+        // Create profile if missing (accounts created before fix)
+        await supabase.from("profiles").insert({
+          id: user.id,
+          email: user.email || "",
+          full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+          role: "member",
+        });
+        const { data: newProfile } = await supabase
+          .from("profiles").select("*").eq("id", user.id).maybeSingle();
+        setProfile(newProfile);
+      } else {
+        setProfile(data);
+      }
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); router.push("/login"); });
   }, [router]);
 
   if (loading) {

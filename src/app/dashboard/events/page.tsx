@@ -19,7 +19,7 @@ export default function EventsPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
       setProfile(p);
       const { data } = await supabase
         .from("events")
@@ -36,7 +36,7 @@ export default function EventsPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: event } = await supabase.from("events").select("max_capacity, registered_count").eq("id", eventId).single();
+    const { data: event } = await supabase.from("events").select("max_capacity, registered_count").eq("id", eventId).maybeSingle();
     if (!event || event.registered_count >= event.max_capacity) return;
     await supabase.from("event_registrations").insert({ event_id: eventId, user_id: user.id });
     await supabase.from("events").update({ registered_count: event.registered_count + 1 }).eq("id", eventId);

@@ -31,7 +31,7 @@ export default function DashboardPage() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       setProfile(profile);
 
       const [booksRes, loansRes, overdueRes, membersRes, eventsRes] = await Promise.all([

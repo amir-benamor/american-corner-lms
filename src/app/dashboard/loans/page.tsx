@@ -19,7 +19,7 @@ export default function LoansPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
       setProfile(p);
 
       const isStaff = p?.role === "super_admin" || p?.role === "librarian";
@@ -38,7 +38,7 @@ export default function LoansPage() {
 
   async function renew(loanId: string) {
     const supabase = createClient();
-    const { data: loan } = await supabase.from("loans").select("*").eq("id", loanId).single();
+    const { data: loan } = await supabase.from("loans").select("*").eq("id", loanId).maybeSingle();
     if (!loan || loan.renewal_count >= 2 || loan.status === "overdue") return;
     const newDue = new Date(new Date(loan.due_at).getTime() + 14 * 24 * 60 * 60 * 1000);
     await supabase.from("loans").update({ due_at: newDue.toISOString(), renewal_count: loan.renewal_count + 1 }).eq("id", loanId);

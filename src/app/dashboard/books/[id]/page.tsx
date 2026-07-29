@@ -20,9 +20,9 @@ export default function BookDetailPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       setProfile(p);
-      const { data } = await supabase.from("books").select("*").eq("id", params.id).single();
+      const { data } = await supabase.from("books").select("*").eq("id", params.id).maybeSingle();
       if (!data) { router.push("/dashboard/books"); return; }
       setBook(data);
       setLoading(false);

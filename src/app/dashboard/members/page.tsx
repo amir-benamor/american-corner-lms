@@ -16,7 +16,7 @@ export default function MembersPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       if (!p || p.role === "member") { router.push("/dashboard"); return; }
       const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       setMembers(data || []);

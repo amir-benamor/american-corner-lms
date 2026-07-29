@@ -12,7 +12,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+        setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
@@ -29,14 +29,13 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const path = request.nextUrl.pathname;
   const protectedPaths = ["/dashboard"];
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
-  const isAuthPage =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register") ||
-    request.nextUrl.pathname.startsWith("/magic-link");
+  const isProtected = protectedPaths.some((p) => path.startsWith(p));
+  const isStatic = path.startsWith("/_next") || path.startsWith("/api");
+  const isAuthPage = path === "/login" || path === "/register" || path === "/magic-link";
+
+  if (isStatic) return supabaseResponse;
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();

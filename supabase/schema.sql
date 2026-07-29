@@ -222,7 +222,14 @@ BEGIN
 END;
 $$;
 
--- 9. ROW LEVEL SECURITY
+-- 9. BASE TABLE PRIVILEGES (required for anon, authenticated, and service_role to access tables)
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated, service_role;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+
+-- 10. ROW LEVEL SECURITY
 
 -- Profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

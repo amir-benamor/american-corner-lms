@@ -16,30 +16,47 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push("/login"); return; }
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (!data) {
-        // Create profile if missing (accounts created before fix)
-        await supabase.from("profiles").insert({
-          id: user.id,
-          email: user.email || "",
-          full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-          role: "member",
-        });
-        const { data: newProfile } = await supabase
-          .from("profiles").select("*").eq("id", user.id).maybeSingle();
-        setProfile(newProfile);
-      } else {
-        setProfile(data);
+
+    async function init() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) { router.push("/login"); return; }
+
+        let profile = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle().then(r => r.data);
+
+        if (!profile) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            try {
+              const res = await fetch("/api/profile", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (res.ok) {
+                const data = await res.json();
+                profile = data.profile;
+              }
+            } catch {}
+          }
+        }
+
+        if (!cancelled) {
+          setProfile(profile);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) { setLoading(false); router.push("/login"); }
       }
-      setLoading(false);
-    }).catch(() => { setLoading(false); router.push("/login"); });
+    }
+
+    init();
+    return () => { cancelled = true; };
   }, [router]);
 
   if (loading) {

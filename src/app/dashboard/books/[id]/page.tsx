@@ -1,23 +1,36 @@
-import { getBookById } from "@/lib/supabase/queries";
-import { getCurrentUser, getProfile } from "@/lib/supabase/queries";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
-export default async function BookDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  const profile = await getProfile(user.id);
-  const { id } = await params;
-  const book = await getBookById(id);
-  if (!book) return <div className="text-center py-12">Book not found</div>;
+export default function BookDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [book, setBook] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.push("/login"); return; }
+      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      setProfile(p);
+      const { data } = await supabase.from("books").select("*").eq("id", params.id).single();
+      if (!data) { router.push("/dashboard/books"); return; }
+      setBook(data);
+      setLoading(false);
+    });
+  }, [params.id, router]);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!book) return null;
 
   const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
 
@@ -26,7 +39,6 @@ export default async function BookDetailPage({
       <Link href="/dashboard/books" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to catalog
       </Link>
-
       <Card>
         <CardContent className="p-6">
           <div className="flex gap-6 flex-col sm:flex-row">
@@ -42,39 +54,18 @@ export default async function BookDetailPage({
                 <h1 className="text-2xl font-bold">{book.title}</h1>
                 <p className="text-muted-foreground">{book.author}</p>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 <Badge>{book.genre}</Badge>
                 <Badge variant="secondary">{book.language}</Badge>
                 {book.cefr_level && <Badge variant="outline">CEFR: {book.cefr_level}</Badge>}
               </div>
-
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">ISBN:</span> {book.isbn}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Barcode:</span> {book.barcode}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Shelf:</span> {book.shelf_location || "Unassigned"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Copies:</span> {book.available_copies}/{book.total_copies} available
-                </div>
+                <div><span className="text-muted-foreground">ISBN:</span> {book.isbn}</div>
+                <div><span className="text-muted-foreground">Barcode:</span> {book.barcode}</div>
+                <div><span className="text-muted-foreground">Shelf:</span> {book.shelf_location || "Unassigned"}</div>
+                <div><span className="text-muted-foreground">Copies:</span> {book.available_copies}/{book.total_copies} available</div>
               </div>
-
-              {book.description && (
-                <p className="text-sm text-muted-foreground">{book.description}</p>
-              )}
-
-              {isStaff && (
-                <div className="flex gap-2 pt-2">
-                  <Link href={`/dashboard/books/${id}/edit`}>
-                    <Button variant="outline" size="sm">Edit Book</Button>
-                  </Link>
-                </div>
-              )}
+              {book.description && <p className="text-sm text-muted-foreground">{book.description}</p>}
             </div>
           </div>
         </CardContent>

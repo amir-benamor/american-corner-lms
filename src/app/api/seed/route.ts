@@ -37,39 +37,59 @@ export async function POST(req: Request) {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
-    // allow any logged-in user to seed demo data
-
-    const results = { books: 0, events: 0, skipped: 0 };
+    const books = [];
+    let skipped = 0;
 
     for (const book of SAMPLE_BOOKS) {
       const { data: existing } = await supabase.from("books").select("id").eq("isbn", book.isbn).maybeSingle();
-      if (existing) { results.skipped++; continue; }
+      if (existing) { skipped++; continue; }
 
-      const barcode = `BOOK-${book.isbn}-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("books").insert({
-        ...book,
-        barcode,
+      const { data, error } = await supabase.from("books").insert({
+        title: book.title,
+        author: book.author,
+        isbn: book.isbn,
+        description: book.description,
+        genre: book.genre,
+        language: book.language,
+        cefr_level: book.cefr_level,
+        cover_url: book.cover_url,
+        shelf_location: book.shelf_location,
+        total_copies: book.total_copies,
         available_copies: book.total_copies,
-        language: book.language as any,
-        cefr_level: book.cefr_level as any,
-      });
-      if (!error) results.books++;
+        tags: book.tags,
+        barcode: `BOOK-${book.isbn}-${Date.now().toString(36).toUpperCase()}`,
+      }).select();
+      if (error) { books.push({ isbn: book.isbn, error: error.message }); }
+      else { skipped--; books.push({ isbn: book.isbn, inserted: true }); }
     }
 
+    const events = [];
     for (const event of SAMPLE_EVENTS) {
       const { data: existing } = await supabase.from("events").select("id").eq("title", event.title).maybeSingle();
-      if (existing) { results.skipped++; continue; }
+      if (existing) { skipped++; continue; }
 
-      const { error } = await supabase.from("events").insert({
-        ...event,
-        type: event.type as any,
+      const { data, error } = await supabase.from("events").insert({
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        location: event.location,
+        max_capacity: event.max_capacity,
         created_by: user.id,
-      });
-      if (!error) results.events++;
+      }).select();
+      if (error) { events.push({ title: event.title, error: error.message }); }
+      else { events.push({ title: event.title, inserted: true }); }
     }
 
-    return NextResponse.json({ success: true, ...results });
+    return NextResponse.json({
+      success: true,
+      books: books.filter(b => (b as any).inserted).length,
+      events: events.filter(e => (e as any).inserted).length,
+      skipped,
+      details: { books, events },
+    });
   } catch (err: any) {
-    return NextResponse.json({ message: err.message }, { status: 500 });
+    return NextResponse.json({ message: err.message, stack: err.stack }, { status: 500 });
   }
 }

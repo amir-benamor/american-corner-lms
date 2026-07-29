@@ -37,8 +37,7 @@ export async function POST(req: Request) {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (!profile || profile.role === "member") return NextResponse.json({ message: "Staff only" }, { status: 403 });
+    // allow any logged-in user to seed demo data
 
     const results = { books: 0, events: 0, skipped: 0 };
 

@@ -96,7 +96,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {(stats?.totalBooks === 0 || stats?.upcomingEvents === 0) && (profile?.role === "super_admin" || profile?.role === "librarian") && (
+      {(stats?.totalBooks === 0 || stats?.upcomingEvents === 0) && (
         <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
           <CardContent className="p-6 text-center space-y-3">
             <Database className="h-8 w-8 mx-auto text-primary" />

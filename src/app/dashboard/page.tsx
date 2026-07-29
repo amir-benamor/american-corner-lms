@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, BookMarked, AlertTriangle, Users, Calendar, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BookOpen, BookMarked, AlertTriangle, Users, Calendar, Loader2, Database } from "lucide-react";
 import { ChatWidget } from "@/components/ai/chat-widget";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,6 +14,8 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -92,6 +95,41 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {(stats?.totalBooks === 0 || stats?.upcomingEvents === 0) && (profile?.role === "super_admin" || profile?.role === "librarian") && (
+        <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+          <CardContent className="p-6 text-center space-y-3">
+            <Database className="h-8 w-8 mx-auto text-primary" />
+            <p className="font-medium">Library is empty</p>
+            <p className="text-sm text-muted-foreground">Click below to add sample books and events for your demo.</p>
+            <Button
+              onClick={async () => {
+                setSeeding(true);
+                setSeedMsg("Seeding data...");
+                const supabase = createClient();
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) { setSeedMsg("Not logged in"); setSeeding(false); return; }
+                const res = await fetch("/api/seed", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setSeedMsg(`Added ${data.books} books, ${data.events} events! Refreshing...`);
+                  setTimeout(() => window.location.reload(), 1500);
+                } else {
+                  setSeedMsg(data.message || "Failed");
+                  setSeeding(false);
+                }
+              }}
+              disabled={seeding}
+            >
+              {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
+              {seeding ? seedMsg : "Setup Demo Data"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <ChatWidget />
     </div>

@@ -14,6 +14,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -21,7 +22,13 @@ export default function DashboardLayout({
 
     async function init() {
       try {
+        const timer = setTimeout(() => {
+          if (!cancelled) { setError("Auth timed out — check your Supabase URL env var"); setLoading(false); }
+        }, 15000);
+
         const { data: { user } } = await supabase.auth.getUser();
+        clearTimeout(timer);
+
         if (!user || cancelled) { router.push("/login"); return; }
 
         let profile = await supabase
@@ -50,8 +57,8 @@ export default function DashboardLayout({
           setProfile(profile);
           setLoading(false);
         }
-      } catch {
-        if (!cancelled) { setLoading(false); router.push("/login"); }
+      } catch (e: any) {
+        if (!cancelled) { setError(String(e?.message || e)); setLoading(false); }
       }
     }
 
@@ -64,7 +71,19 @@ export default function DashboardLayout({
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-2">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="bg-destructive/10 text-destructive border border-destructive/30 rounded-lg p-6 max-w-md text-center space-y-2">
+          <p className="font-semibold">Dashboard Error</p>
+          <p className="text-sm">{error}</p>
+          <button onClick={() => window.location.reload()} className="text-sm underline">Retry</button>
         </div>
       </div>
     );

@@ -17,6 +17,10 @@ const SAMPLE_EVENTS = [
   { title: "US Study Info Session", description: "Scholarships, applications, visas, and student life in the US.", type: "study_info", start_date: new Date(Date.now() + 21 * 86400000).toISOString(), end_date: new Date(Date.now() + 21 * 86400000 + 7200000).toISOString(), location: "Conference Room", max_capacity: 50 },
 ];
 
+function cleanUrl(url: string) {
+  return url.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -24,7 +28,7 @@ export async function POST(req: Request) {
 
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      cleanUrl(process.env.NEXT_PUBLIC_SUPABASE_URL!),
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false } }
     );

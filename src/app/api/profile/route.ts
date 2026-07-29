@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+function cleanUrl(url: string) {
+  return url.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -7,7 +11,7 @@ export async function POST(req: Request) {
 
     const { createClient } = await import("@supabase/supabase-js");
     const serviceClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      cleanUrl(process.env.NEXT_PUBLIC_SUPABASE_URL!),
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false } }
     );

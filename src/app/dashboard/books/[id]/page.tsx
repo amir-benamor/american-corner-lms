@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowLeft, Loader2 } from "lucide-react";
+import { BookOpen, ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,8 @@ export default function BookDetailPage() {
   const [book, setBook] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -33,6 +35,25 @@ export default function BookDetailPage() {
   if (!book) return null;
 
   const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
+
+  async function handleDelete() {
+    if (!book) return;
+    if (!window.confirm(`Delete "${book.title}" from the catalog? This cannot be undone.`)) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const { message } = await res.json();
+        throw new Error(message || "Failed to delete book");
+      }
+      router.push("/dashboard/books");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -70,6 +91,18 @@ export default function BookDetailPage() {
           </div>
         </CardContent>
       </Card>
+      {isStaff && (
+        <div className="flex items-center gap-2">
+          <Link href={`/dashboard/books/${book.id}/edit`}>
+            <Button variant="outline"><Pencil className="h-4 w-4 mr-2" />Edit Book</Button>
+          </Link>
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            Delete Book
+          </Button>
+        </div>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

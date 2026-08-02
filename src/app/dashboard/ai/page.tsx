@@ -119,7 +119,7 @@ export default function AIPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">AI Librarian Assistant</h1>
-          <p className="text-muted-foreground">Powered by semantic search and GPT-4o</p>
+          <p className="text-muted-foreground">Powered by semantic search and Gemini</p>
         </div>
       </div>
 

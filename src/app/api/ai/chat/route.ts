@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const { messages } = await req.json();
 
     const result = await streamText({
-      model: google("gemini-1.5-flash"),
+      model: google("gemini-2.0-flash"),
       system: `You are an AI Librarian for American Corner Sousse in Tunisia.
 You help members discover books, answer library questions, and make reading recommendations.
 You have access to the library catalog via semantic search.

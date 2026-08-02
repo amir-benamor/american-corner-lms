@@ -19,7 +19,7 @@ export async function POST() {
     }
 
     const texts = books.map((b: any) => buildBookEmbeddingText(b));
-    const { embeddings } = await generateEmbeddings(texts);
+    const embeddings = await generateEmbeddings(texts);
 
     let updated = 0;
     for (let i = 0; i < books.length; i++) {

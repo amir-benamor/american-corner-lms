@@ -37,6 +37,14 @@ export async function POST(req: Request) {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
+    if (!isStaff) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const books = [];
     let skipped = 0;
 

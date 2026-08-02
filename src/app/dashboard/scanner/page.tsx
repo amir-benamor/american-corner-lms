@@ -1,21 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarcodeScanner } from "@/components/scanner/barcode-scanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, BookOpen } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type ScanMode = "checkout" | "return";
 
 export default function ScannerPage() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
   const [mode, setMode] = useState<ScanMode>("checkout");
   const [step, setStep] = useState<"member" | "book" | "done">("member");
   const [memberCode, setMemberCode] = useState("");
   const [bookCode, setBookCode] = useState("");
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; dueAt?: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.push("/login"); return; }
+      const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      const isStaff = p?.role === "super_admin" || p?.role === "librarian";
+      if (!isStaff) { router.push("/dashboard"); return; }
+      setChecking(false);
+    });
+  }, [router]);
+
+  if (checking) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   function handleMemberScan(code: string) {
     setMemberCode(code);

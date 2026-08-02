@@ -10,6 +10,13 @@ export async function POST(req: Request) {
     const supabase = await createServerSupabaseClient();
     const serviceClient = await createServiceClient();
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
+    if (!isStaff) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     if (action === "checkout") {
       const { data: profile } = await serviceClient
         .from("profiles")

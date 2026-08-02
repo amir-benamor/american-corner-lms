@@ -4,6 +4,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const isbn = searchParams.get("isbn");
   if (!isbn) return NextResponse.json({ error: "ISBN required" }, { status: 400 });
+  if (!/^\d{9}[\dX]$|^\d{13}$/.test(isbn)) {
+    return NextResponse.json({ error: "Invalid ISBN format" }, { status: 400 });
+  }
 
   try {
     const res = await fetch(

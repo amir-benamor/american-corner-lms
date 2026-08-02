@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { generateEmbeddings, buildBookEmbeddingText } from "@/lib/ai/embed";
 
 export const maxDuration = 60;
 
 export async function POST() {
   try {
-    const supabase = await createServiceClient();
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
+    if (!isStaff) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
+    const service = await createServiceClient();
     const { data: books, error } = await supabase
       .from("books")
       .select("id, title, author, description, genre, tags, embedding")

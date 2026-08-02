@@ -1,12 +1,32 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { timingSafeEqual } from "node:crypto";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+function safeEqual(a: string, b: string) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+function esc(s: string) {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>)[c]
+  );
+}
+
 export async function GET(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json({ error: "Cron not configured" }, { status: 503 });
+  }
+
+  const authHeader = req.headers.get("authorization") || "";
+  const provided = authHeader.replace(/^Bearer\s+/i, "");
+  if (!safeEqual(provided, secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -55,8 +75,8 @@ export async function GET(req: Request) {
               from: "American Corner Sousse <library@americancornersousse.org>",
               to: loan.profiles.email,
               subject: "Overdue Book Notice",
-              html: `<p>Dear ${loan.profiles.full_name},</p>
-<p>The book "<strong>${loan.books.title}</strong>" is now overdue. Please return it as soon as possible to avoid additional fees.</p>
+              html: `<p>Dear ${esc(loan.profiles.full_name)},</p>
+<p>The book "<strong>${esc(loan.books.title)}</strong>" is now overdue. Please return it as soon as possible to avoid additional fees.</p>
 <p>Thank you,<br/>American Corner Sousse Library</p>`,
             }),
           });

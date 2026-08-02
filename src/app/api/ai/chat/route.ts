@@ -1,9 +1,7 @@
 import { google } from "@ai-sdk/google";
-import { streamText, tool } from "ai";
+import { streamText } from "ai";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { semanticSearch } from "@/lib/ai/rag";
-import { createServiceClient } from "@/lib/supabase/server";
 
 export const maxDuration = 30;
 
@@ -11,58 +9,43 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m: any) => m.role === "user");
+
+    let catalogResults = "";
+    if (lastUserMessage?.content) {
+      try {
+        const results = await semanticSearch(lastUserMessage.content, 5);
+        catalogResults = results.length
+          ? results
+              .map(
+                (b) =>
+                  `- "${b.title}" by ${b.author} (${b.genre}, ${b.language}, CEFR ${
+                    b.cefr_level || "N/A"
+                  }, ${b.available_copies} copy available) - ${b.description}`
+              )
+              .join("\n")
+          : "No matching books found in the catalog.";
+      } catch {
+        catalogResults = "Catalog search is currently unavailable.";
+      }
+    }
+
     const result = await streamText({
       model: google("gemini-3.5-flash"),
       system: `You are an AI Librarian for American Corner Sousse in Tunisia.
 You help members discover books, answer library questions, and make reading recommendations.
-You have access to the library catalog via semantic search.
 Always be friendly, helpful, and knowledgeable about American literature and culture.
 When recommending books, always mention why the book is a good match.
 You can communicate in English, French, or Arabic as needed.
-The library is located in Sousse, Tunisia and focuses on American culture, English language learning, and educational resources.`,
+The library is located in Sousse, Tunisia and focuses on American culture, English language learning, and educational resources.
+
+Books from the library catalog relevant to the user's latest question:
+${catalogResults}
+
+Use the list above when recommending or discussing books. If the user is not asking about books, you may answer generally and mention the catalog list only if relevant. If no books match, say so and suggest browsing the catalog or trying a different topic.`,
       messages,
-      maxSteps: 5,
-      tools: {
-        searchBooks: tool({
-          description: "Search for books in the library catalog using semantic search",
-          parameters: z.object({
-            query: z.string().describe("The search query (title, author, topic, or natural language)"),
-            limit: z.number().optional().default(5),
-          }),
-          execute: async ({ query, limit }) => {
-            const results = await semanticSearch(query, limit);
-            return results;
-          },
-        }),
-        getBookDetails: tool({
-          description: "Get detailed information about a specific book by ID",
-          parameters: z.object({
-            bookId: z.string().uuid(),
-          }),
-          execute: async ({ bookId }) => {
-            const supabase = await createServiceClient();
-            const { data } = await supabase.from("books").select("*").eq("id", bookId).maybeSingle();
-            return data;
-          },
-        }),
-        getLibraryStats: tool({
-          description: "Get library statistics",
-          parameters: z.object({}),
-          execute: async () => {
-            const supabase = await createServiceClient();
-            const [books, members, activeLoans] = await Promise.all([
-              supabase.from("books").select("*", { count: "exact", head: true }),
-              supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "member"),
-              supabase.from("loans").select("*", { count: "exact", head: true }).in("status", ["active", "overdue"]),
-            ]);
-            return {
-              totalBooks: books.count,
-              totalMembers: members.count,
-              activeLoans: activeLoans.count,
-            };
-          },
-        }),
-      },
     });
 
     return result.toDataStreamResponse();

@@ -9,6 +9,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const isStaff = profile?.role === "super_admin" || profile?.role === "librarian";
+    if (!isStaff) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const service = await createServiceClient();
 
     const { data: current } = await service

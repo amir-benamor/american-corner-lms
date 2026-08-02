@@ -229,16 +229,28 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role
 GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated, service_role;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
 
--- 10. ROW LEVEL SECURITY
+-- 10. STAFF CHECK FUNCTION (SECURITY DEFINER bypasses RLS, avoiding recursion)
+CREATE OR REPLACE FUNCTION is_staff(user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = user_id AND role IN ('super_admin', 'librarian')
+  );
+$$;
+
+-- 11. ROW LEVEL SECURITY
 
 -- Profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Staff can view all profiles"
-  ON profiles FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON profiles FOR SELECT USING (is_staff(auth.uid()));
 CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update own profile"
@@ -249,43 +261,29 @@ ALTER TABLE books ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view books"
   ON books FOR SELECT USING (true);
 CREATE POLICY "Staff can insert books"
-  ON books FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON books FOR INSERT WITH CHECK (is_staff(auth.uid()));
 CREATE POLICY "Staff can update books"
-  ON books FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON books FOR UPDATE USING (is_staff(auth.uid()));
 CREATE POLICY "Staff can delete books"
-  ON books FOR DELETE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON books FOR DELETE USING (is_staff(auth.uid()));
 
 -- Loans
 ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own loans"
   ON loans FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Staff can view all loans"
-  ON loans FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON loans FOR SELECT USING (is_staff(auth.uid()));
 CREATE POLICY "Staff can insert loans"
-  ON loans FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON loans FOR INSERT WITH CHECK (is_staff(auth.uid()));
 CREATE POLICY "Staff can update loans"
-  ON loans FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON loans FOR UPDATE USING (is_staff(auth.uid()));
 
 -- Holds
 ALTER TABLE holds ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own holds"
   ON holds FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Staff can view all holds"
-  ON holds FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON holds FOR SELECT USING (is_staff(auth.uid()));
 CREATE POLICY "Users can place holds"
   ON holds FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can cancel own holds"
@@ -296,43 +294,31 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view events"
   ON events FOR SELECT USING (true);
 CREATE POLICY "Staff can manage events"
-  ON events FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON events FOR INSERT WITH CHECK (is_staff(auth.uid()));
 CREATE POLICY "Staff can update events"
-  ON events FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON events FOR UPDATE USING (is_staff(auth.uid()));
 CREATE POLICY "Staff can delete events"
-  ON events FOR DELETE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON events FOR DELETE USING (is_staff(auth.uid()));
 
 -- Event Registrations
 ALTER TABLE event_registrations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own registrations"
   ON event_registrations FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Staff can view all registrations"
-  ON event_registrations FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON event_registrations FOR SELECT USING (is_staff(auth.uid()));
 CREATE POLICY "Users can register"
   ON event_registrations FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can cancel own registration"
   ON event_registrations FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY "Staff can check in"
-  ON event_registrations FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON event_registrations FOR UPDATE USING (is_staff(auth.uid()));
 
 -- Bookings
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own bookings"
   ON bookings FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Staff can view all bookings"
-  ON bookings FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin', 'librarian'))
-  );
+  ON bookings FOR SELECT USING (is_staff(auth.uid()));
 CREATE POLICY "Users can create bookings"
   ON bookings FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can cancel own bookings"

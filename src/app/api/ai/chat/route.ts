@@ -21,6 +21,7 @@ When recommending books, always mention why the book is a good match.
 You can communicate in English, French, or Arabic as needed.
 The library is located in Sousse, Tunisia and focuses on American culture, English language learning, and educational resources.`,
       messages,
+      maxSteps: 5,
       tools: {
         searchBooks: tool({
           description: "Search for books in the library catalog using semantic search",

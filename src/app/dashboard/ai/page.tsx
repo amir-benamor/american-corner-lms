@@ -54,6 +54,15 @@ export default function AIPage() {
         }),
       });
 
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const err = await res.json();
+          detail = err.message || "";
+        } catch {}
+        throw new Error(detail || `Request failed with status ${res.status}`);
+      }
+
       if (!res.body) throw new Error("No response");
 
       const reader = res.body.getReader();
@@ -80,6 +89,17 @@ export default function AIPage() {
             } catch {}
           }
         }
+      }
+
+      if (!fullContent.trim()) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: "I couldn't find a clear answer for that. Try rephrasing your question, or ask about a specific book, author, or topic.",
+          };
+          return updated;
+        });
       }
     } catch {
       setMessages((prev) => [
